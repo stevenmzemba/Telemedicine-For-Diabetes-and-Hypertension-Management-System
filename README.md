@@ -114,3 +114,4 @@ git commit -m "Add single-file Telemed UI"
 Support & next steps
 
 - I can: (A) rename `telemed-single.html` to `index.html` and prepare a Git commit here, (B) generate example SQL migration files, or (C) add a small serverless function example to assign roles securely. Which would you like me to do next?
+
