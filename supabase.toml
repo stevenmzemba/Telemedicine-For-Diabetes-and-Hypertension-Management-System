@@ -1,0 +1,14 @@
+# Minimal supabase.toml placeholder for Sites / Supabase CLI
+# Edit values below to match your Supabase project when using the CLI.
+
+[project]
+ref = "REPLACE_WITH_PROJECT_REF"
+
+[site]
+# publish_dir can be repo root or a subfolder containing index.html
+publish_dir = "."
+
+# You can add env var placeholders here to remind deploy-time env vars
+[env]
+# SUPABASE_URL = ""
+# SUPABASE_ANON_KEY = ""

@@ -1,0 +1,412 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telemed — Single File App</title>
+  <style>
+    *{box-sizing:border-box;font-family:Segoe UI, Roboto, Arial, sans-serif}
+    body{margin:0;background:#f4f6f8;color:#222}
+    .site-header{display:flex;justify-content:space-between;align-items:center;padding:12px 20px;background:#1f6feb;color:#fff}
+    .brand{font-weight:700}
+    .nav-actions .btn{margin-left:8px}
+    .btn{background:#fff;border:none;padding:8px 12px;border-radius:6px;cursor:pointer}
+    .btn-primary{background:#1f6feb;color:#fff}
+    .btn-outline{background:#fff;border:1px solid #ddd}
+    .btn-sm{padding:6px 8px;font-size:13px}
+    .home-hero{padding:40px;text-align:center}
+    .card{background:#fff;border-radius:8px;padding:16px;margin:20px}
+    .page-header{display:flex;justify-content:space-between;align-items:center;padding:8px 0}
+    .search-box input{padding:8px;border-radius:6px;border:1px solid #ddd}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.45);display:flex;align-items:center;justify-content:center;z-index:40}
+    .table-responsive{overflow:auto}
+    .data-table{width:100%;border-collapse:collapse}
+    .data-table th,.data-table td{padding:8px;border-bottom:1px solid #eee;text-align:left}
+    .modal{background:#fff;padding:16px;border-radius:8px;min-width:300px;max-width:900px}
+    .modal.large{max-width:1000px}
+    .modal-header{display:flex;justify-content:space-between;align-items:center}
+    .form-row{display:flex;gap:8px}
+    .form-group{flex:1;display:flex;flex-direction:column;margin:8px 0}
+    .form-group input, .form-group select, .form-group textarea{padding:8px;border:1px solid #ccc;border-radius:6px}
+    .modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+    .badge{padding:4px 8px;border-radius:999px;background:#eee}
+    .big-cross{width:140px;height:140px;border-radius:12px;background:#1f6feb;color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:80px;font-weight:800;box-shadow:0 6px 20px rgba(31,111,235,0.18)}
+    .dashboard-btn{background:transparent;color:#fff;border:1px solid rgba(255,255,255,0.18);padding:8px 12px;border-radius:8px}
+    .home-layout{display:flex;gap:20px;align-items:flex-start;justify-content:center;padding:18px}
+    .services-column{width:220px}
+    .service-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:8px;margin-bottom:8px;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.04)}
+    .service-icon{width:44px;height:44px;border-radius:8px;background:#1f6feb;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px}
+    .service-label{font-weight:600;color:#222}
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div style="display:flex;align-items:center;gap:16px;width:100%;">
+      <div style="flex:0 0 auto;margin-left:6px;">
+        <button class="dashboard-btn" id="dashboard-btn">Dashboard</button>
+      </div>
+      <div style="flex:1;text-align:center;padding:12px;">
+        <h1 style="margin:0;color:#fff;font-size:20px;line-height:1.2;font-weight:800;display:inline-block">Telemedicine for Diabetes and Hypertension Management</h1>
+        <button class="btn btn-primary" id="header-action" style="margin-left:12px;padding:8px 12px;font-size:14px">Learn More</button>
+      </div>
+      <div style="flex:0 0 auto;text-align:right;padding-right:8px;">
+        <!-- reserved for future nav/actions -->
+      </div>
+    </div>
+  </header>
+
+  <main id="content"></main>
+
+  <!-- Supabase UMD -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+  <script>
+    // Paste your Supabase values here
+    const SUPABASE_URL = 'REPLACE_WITH_YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'REPLACE_WITH_YOUR_SUPABASE_ANON_KEY';
+    // Create a supabase client only if the UMD exposes a createClient function.
+    const supabase = (window.supabase && typeof window.supabase.createClient === 'function')
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : null;
+    // expose the client on window for legacy usage in this file
+    window.supabaseClient = supabase;
+  </script>
+
+  <script>
+    // Global error handlers to surface runtime errors in the UI for debugging
+    window.addEventListener('error', function (ev) {
+      console.error('Runtime error', ev.error || ev.message, ev);
+      try{
+        const el = document.createElement('div'); el.style.position='fixed'; el.style.right='12px'; el.style.bottom='12px'; el.style.background='rgba(255,80,80,0.95)'; el.style.color='#fff'; el.style.padding='10px'; el.style.borderRadius='8px'; el.style.zIndex=99999; el.textContent = 'Error: '+(ev.error?.message||ev.message||ev.toString()); document.body.appendChild(el);
+      }catch(e){}
+    });
+    window.addEventListener('unhandledrejection', function(ev){ console.error('UnhandledRejection', ev.reason); try{ const el=document.createElement('div'); el.style.position='fixed'; el.style.left='12px'; el.style.bottom='12px'; el.style.background='rgba(255,140,0,0.95)'; el.style.color='#fff'; el.style.padding='10px'; el.style.borderRadius='8px'; el.style.zIndex=99999; el.textContent='Promise error: '+(ev.reason?.message||ev.reason||ev.detail||String(ev.reason)); document.body.appendChild(el);}catch(e){} });
+  </script>
+
+  <script>
+    // Single-file patient manager app (minimal)
+    class PatientManager {
+      constructor() {
+          this.currentRole = localStorage.getItem('telemed_role') || null;
+          // demo in-memory store persisted to localStorage when Supabase not configured
+          this.demo = { patients: [], consultations: [] };
+          this._loadDemoStore();
+      }
+
+        _loadDemoStore(){
+          try{
+            const raw = localStorage.getItem('telemed_demo');
+            if (raw) this.demo = JSON.parse(raw);
+            else this._saveDemoStore();
+          }catch(e){ this.demo = { patients:[], consultations:[] }; this._saveDemoStore(); }
+        }
+
+        _saveDemoStore(){ localStorage.setItem('telemed_demo', JSON.stringify(this.demo)); }
+
+      // ensure there's a modal container in DOM and return it
+      _ensureModalContainer(){
+        let modal = document.getElementById('modal-container');
+        if (!modal){ modal = document.createElement('div'); modal.id = 'modal-container'; document.getElementById('content')?.appendChild(modal) || document.body.appendChild(modal); }
+        return modal;
+      }
+
+        _createPatientDemo(patient){
+          const id = 'p_' + Date.now();
+          const patient_code = 'P' + Date.now().toString().slice(-6);
+          const rec = Object.assign({ id, patient_code, created_at: new Date().toISOString() }, patient);
+          this.demo.patients.push(rec); this._saveDemoStore(); return rec;
+        }
+
+        _createConsultationDemo(patientId, createdBy='cashier', fee=0){
+          const id = 'c_' + Date.now();
+          const consultation_code = 'C' + Date.now().toString().slice(-6);
+          const rec = { id, consultation_code, patient_id: patientId, status: 'pending_provider', fee, created_by: createdBy, created_at: new Date().toISOString(), diagnosis:null, medication:null, pharmacy_received:false };
+          this.demo.consultations.push(rec); this._saveDemoStore(); return rec;
+        }
+
+        _getConsultationsByPatient(patientId){ return this.demo.consultations.filter(c=>c.patient_id===patientId); }
+
+        _updateConsultationDemo(id, changes){ const c = this.demo.consultations.find(x=>x.id===id); if (!c) return null; Object.assign(c, changes); this._saveDemoStore(); return c; }
+
+      showWelcomePage() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+          <div class="home-hero">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:18px;padding:48px 12px">
+              <div class="big-cross" role="img" aria-label="medical cross">+</div>
+              <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;max-width:820px">
+                <div style="background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.06);font-weight:600">Patient Management</div>
+                <div style="background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.06);font-weight:600">Scheduling & Visits</div>
+                <div style="background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.06);font-weight:600">Reports & Analytics</div>
+                <div style="background:#fff;padding:10px 14px;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.06);font-weight:600">Notifications</div>
+              </div>
+              <div class="home-actions" style="display:flex;justify-content:center;gap:12px;margin-top:8px">
+                  <button class="btn btn-primary" id="login-btn" style="padding:12px 22px;font-size:16px">Sign In</button>
+                  <button class="btn btn-outline" id="signup-btn" style="padding:12px 22px;font-size:16px">Sign Up</button>
+              </div>
+            </div>
+          </div>
+          <div id="modal-container"></div>
+          <footer style="text-align:center;padding:18px 10px;margin-top:18px;color:#1f6feb;font-weight:700">2025 © Steven Mzemba — Telemedicine for Diabetes and Hypertension Management</footer>
+        `;
+
+        this.attachAuthListeners();
+        const goto = document.getElementById('goto-patients'); if (goto) goto.addEventListener('click', () => this.loadPatientsDemo());
+      }
+
+      attachAuthListeners() {
+        const loginBtn = document.getElementById('login-btn'); if (loginBtn) loginBtn.addEventListener('click', () => this.showLoginModal());
+        const signupBtn = document.getElementById('signup-btn'); if (signupBtn) signupBtn.addEventListener('click', () => this.showSignupModal());
+      }
+
+      showLoginModal() {
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `
+          <div class="modal-overlay active">
+            <div class="modal">
+              <div class="modal-header"><h3>Login</h3><button class="modal-close">&times;</button></div>
+              <div class="modal-body">
+                <form id="login-form">
+                  <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+                  <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" form="login-form" class="btn btn-primary">Login</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const submit = e.target.querySelector('button[type="submit"]'); if (submit) { submit.disabled = true; submit.textContent = 'Logging in...'; }
+          const fd = new FormData(e.target);
+          const email = fd.get('email');
+          const password = fd.get('password');
+          if (!supabase) { if (submit) { submit.disabled = false; submit.textContent = 'Login'; } return alert('Supabase not configured.'); }
+          try {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) throw error;
+            const userId = data.user?.id;
+            let role = null;
+            if (userId) {
+              const { data: profile } = await supabase.from('profiles').select('role').eq('id', userId).single();
+              role = profile?.role || null;
+            }
+            if (role) localStorage.setItem('telemed_role', role);
+            document.querySelector('.modal-overlay.active')?.remove();
+            alert('Logged in as ' + (role || 'user'));
+            this.loadPatientsDemo();
+          } catch (err) {
+            alert('Login error: ' + (err.message || err));
+          } finally { if (submit) { submit.disabled = false; submit.textContent = 'Login'; } }
+        });
+      }
+
+      showSignupModal() {
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `
+          <div class="modal-overlay active">
+            <div class="modal">
+              <div class="modal-header"><h3>Sign Up</h3><button class="modal-close">&times;</button></div>
+              <div class="modal-body">
+                <form id="signup-form">
+                  <div class="form-group"><label>Full Name</label><input name="name" required></div>
+                  <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+                  <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+                  <div class="form-group"><label>Role</label>
+                    <select name="role" required>
+                      <option value="cashier">Cashier</option>
+                      <option value="provider">Provider</option>
+                      <option value="pharmacy">Pharmacy</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                <button type="submit" form="signup-form" class="btn btn-primary">Sign Up</button>
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('signup-form').addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const submit = e.target.querySelector('button[type="submit"]'); if (submit) { submit.disabled = true; submit.textContent = 'Signing up...'; }
+          const fd = new FormData(e.target);
+          const name = fd.get('name');
+          const email = fd.get('email');
+          const password = fd.get('password');
+          const role = fd.get('role');
+          if (!supabase) {
+            // demo signup: set role and go to patients view
+            localStorage.setItem('telemed_role', role);
+            document.querySelector('.modal-overlay.active')?.remove();
+            alert('Signed up (demo) as ' + role);
+            this.loadPatientsDemo();
+            if (submit) { submit.disabled = false; submit.textContent = 'Sign Up'; }
+            return;
+          }
+          try {
+            const { data, error } = await supabase.auth.signUp({ email, password });
+            if (error) throw error;
+            const userId = data.user?.id || data?.user?.id;
+            if (userId) {
+              await supabase.from('profiles').upsert({ id: userId, full_name: name, role });
+            }
+            localStorage.setItem('telemed_role', role);
+            document.querySelector('.modal-overlay.active')?.remove();
+            alert('Signed up as ' + role + '. Check your email for confirmation if required.');
+            this.loadPatientsDemo();
+          } catch (err) {
+            alert('Signup error: ' + (err.message || err));
+          } finally { if (submit) { submit.disabled = false; submit.textContent = 'Sign Up'; } }
+        });
+      }
+
+      // demo / placeholder patients view
+      async loadPatientsDemo() {
+        const content = document.getElementById('content');
+        let patients = [];
+        // load from Supabase if configured, otherwise demo store
+        if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('REPLACE')){
+          try{ const { data, error } = await supabase.from('patients').select('*'); if (!error && data) patients = data; else patients = this.demo.patients; }catch(e){ patients = this.demo.patients; }
+        } else { patients = this.demo.patients; }
+        content.innerHTML = `
+          <div class="page-header">
+            <h2>Patient Management</h2>
+            <div>
+              <button class="btn btn-primary" id="add-patient-btn">Add Patient</button>
+              <button class="btn" id="cashier-btn">Cashier</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <h3>All Patients</h3>
+              <div class="search-box"><input type="text" id="patient-search" placeholder="Search patients..."></div>
+            </div>
+            <div class="card-body">
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead><tr><th>Code</th><th>Name</th><th>Age</th><th>Gender</th><th>Village</th><th>Chronic</th><th>Status</th><th>Consult</th><th>Actions</th></tr></thead>
+                  <tbody id="patients-tbody">${this.renderPatientsTable(patients)}</tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div id="modal-container"></div>
+        `;
+        this.attachEventListeners();
+        this.updateRoleUI();
+      }
+
+      renderPatientsTable(patients) {
+        if (!patients || patients.length === 0) return '<tr><td colspan="9" class="text-center">No patients found</td></tr>';
+        const role = localStorage.getItem('telemed_role')||this.currentRole;
+        return patients.map(p=>{
+          const consults = this._getConsultationsByPatient(p.id||p.id);
+          const status = consults.length ? consults[consults.length-1].status : 'new';
+          let actions = '';
+          if (role === 'provider') actions = `<button class="btn btn-sm" data-action="open-consults" data-pid="${p.id}">Open Consults</button>`;
+          if (role === 'pharmacy') actions = `<button class="btn btn-sm" data-action="open-pharmacy" data-pid="${p.id}">Pharmacy</button>`;
+          if (role === 'cashier') actions = `<button class="btn btn-sm" data-action="view-consults" data-pid="${p.id}">View</button>`;
+          if (role === 'admin') actions = `<button class="btn btn-sm" data-action="view-consults" data-pid="${p.id}">View</button>`;
+          return `<tr data-pid="${p.id}"><td>${p.patient_code||''}</td><td>${p.first_name||''} ${p.last_name||''}</td><td>${p.age||''}</td><td>${p.gender||''}</td><td>${p.village||''}</td><td>${(p.chronic_diseases||[]).join(', ')}</td><td>${status}</td><td>${consults.length?consults[consults.length-1].consultation_code:''}</td><td>${actions}</td></tr>`;
+        }).join('');
+      }
+
+      attachEventListeners() {
+        const search = document.getElementById('patient-search'); if (search) search.addEventListener('input', ()=>{});
+        const addBtn = document.getElementById('add-patient-btn'); if (addBtn) addBtn.addEventListener('click', ()=>this.showAddPatientModal());
+        const cashierBtn = document.getElementById('cashier-btn'); if (cashierBtn) cashierBtn.addEventListener('click', ()=>this.showCashierModal());
+        document.addEventListener('click', (e)=>{ if (e.target.classList && e.target.classList.contains('modal-overlay')) e.target.remove();
+          // patient table actions
+          const btn = e.target.closest && e.target.closest('button[data-action]');
+          if (btn){ const action = btn.getAttribute('data-action'); const pid = btn.getAttribute('data-pid'); if (action==='open-consults') this.showProviderConsults(pid); if (action==='open-pharmacy') this.showPharmacyModal(pid); if (action==='view-consults') this.showPatientConsults(pid); }
+        });
+      }
+
+      updateRoleUI(){ const role = localStorage.getItem('telemed_role')||this.currentRole; const allowed=['cashier','admin','provider','pharmacy']; const cashierBtn=document.getElementById('cashier-btn'); const addBtn=document.getElementById('add-patient-btn'); if (cashierBtn) cashierBtn.style.display = allowed.includes(role) ? 'inline-block' : 'none'; if (addBtn) addBtn.style.display = allowed.includes(role) ? 'inline-block' : 'none'; this.currentRole=role; }
+
+      showCashierModal(){ const modal=this._ensureModalContainer(); modal.innerHTML=`<div class="modal-overlay active"><div class="modal"><div class="modal-header"><h3>Cashier - Patient Intake</h3><button class="modal-close">&times;</button></div><div class="modal-body"><form id="cashier-form"><div class="form-row"><div class="form-group"><label>First Name *</label><input type="text" name="first_name" required></div><div class="form-group"><label>Last Name</label><input type="text" name="last_name"></div></div><div class="form-row"><div class="form-group"><label>Age *</label><input type="number" name="age" min="0" max="120" required></div><div class="form-group"><label>Sex *</label><select name="gender" required><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div></div><div class="form-row"><div class="form-group"><label>Village</label><input type="text" name="village"></div></div><div class="form-row"><div class="form-group"><label>Contact 1 *</label><input type="tel" name="contact1" required></div><div class="form-group"><label>Contact 2</label><input type="tel" name="contact2"></div></div><div class="form-group"><label>Chronic Disease Type *</label><select name="chronic_type" required><option value="">Select</option><option value="diabetes">Diabetes</option><option value="hypertension">Hypertension</option></select></div></form></div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button type="submit" form="cashier-form" class="btn btn-primary">Save</button></div></div></div>`; document.getElementById('cashier-form').addEventListener('submit', this.handleCashierSubmit.bind(this)); }
+
+      async handleCashierSubmit(e){
+        e.preventDefault();
+        const fd=new FormData(e.target);
+        const patientData={ first_name:fd.get('first_name'), last_name:fd.get('last_name'), age:parseInt(fd.get('age'))||null, gender:fd.get('gender'), village:fd.get('village'), contacts:[fd.get('contact1'),fd.get('contact2')].filter(Boolean), chronic_type:fd.get('chronic_type') };
+        // disable submit button to prevent double clicks
+        const submitBtn = e.target.querySelector('button[type="submit"]'); if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Saving...'; }
+        if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('REPLACE')){
+          try{
+            const { data, error } = await supabase.from('patients').insert([patientData]).select().single(); if (error) throw error;
+            // create consultation record in Supabase if table exists
+            try{ await supabase.from('consultations').insert([{ patient_id: data.id, consultation_code: 'C'+Date.now().toString().slice(-6), status:'pending_provider', fee:0 }]); }catch(e){}
+            alert('Patient registered — Code: '+(data.patient_code||data.id));
+          } catch(err){ alert('Error saving patient: '+(err.message||err)); }
+        } else {
+          // demo flow: create patient then a consultation (attendance) with generated code and fee
+          const created = this._createPatientDemo(patientData);
+          const consult = this._createConsultationDemo(created.id, 'cashier', 0);
+          console.log('Demo patient created', created, 'consultation', consult);
+          alert('Patient captured (demo). Code: '+created.patient_code+' | Consultation: '+consult.consultation_code);
+        }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Save'; }
+        document.querySelector('.modal-overlay.active')?.remove(); this.loadPatientsDemo();
+      }
+
+      showAddPatientModal(){ const modal=this._ensureModalContainer(); modal.innerHTML = `<div class="modal-overlay active"><div class="modal"><div class="modal-header"><h3>Add New Patient</h3><button class="modal-close">&times;</button></div><div class="modal-body"><form id="add-patient-form"><div class="form-row"><div class="form-group"><label>First Name *</label><input name="first_name" required></div><div class="form-group"><label>Last Name *</label><input name="last_name" required></div></div><div class="form-row"><div class="form-group"><label>Date of Birth *</label><input type="date" name="date_of_birth" required></div><div class="form-group"><label>Age *</label><input type="number" name="age" min="1" max="120" required></div></div><div class="form-row"><div class="form-group"><label>Gender *</label><select name="gender" required><option value="">Select</option><option value="male">Male</option><option value="female">Female</option><option value="other">Other</option></select></div><div class="form-group"><label>Village *</label><input name="village" required></div></div><div class="form-group"><label>Chronic Diseases</label><select name="chronic_diseases" multiple><option value="T1D">Type 1 Diabetes</option><option value="T2D">Type 2 Diabetes</option><option value="HYP_STAGE1">Hypertension Stage 1</option><option value="HYP_STAGE2">Hypertension Stage 2</option><option value="PRE_DIABETES">Pre-diabetes</option></select></div><div class="form-group"><label>Phone</label><input name="phone" type="tel"></div><div class="form-group"><label>Email</label><input name="email" type="email"></div><div class="form-group"><label>Address</label><textarea name="address" rows="3"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button type="submit" form="add-patient-form" class="btn btn-primary">Save Patient</button></div></div></div>`;
+        document.getElementById('add-patient-form').addEventListener('submit', async (e)=>{ e.preventDefault(); const fd=new FormData(e.target); const chronicDiseases=Array.from(e.target.querySelector('[name="chronic_diseases"]').selectedOptions||[]).map(o=>o.value); const patientData={ first_name:fd.get('first_name'), last_name:fd.get('last_name'), date_of_birth:fd.get('date_of_birth'), age:parseInt(fd.get('age'))||null, gender:fd.get('gender'), village:fd.get('village'), phone:fd.get('phone'), email:fd.get('email'), address:fd.get('address'), chronic_diseases:chronicDiseases };
+        if (supabase && SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes('REPLACE')){ try{ const { data, error } = await supabase.from('patients').insert([patientData]).select().single(); if (error) throw error; alert('Patient added! Code: '+(data.patient_code||data.id)); } catch(err){ alert('Error: '+(err.message||err)); } } else { const created=this._createPatientDemo(patientData); alert('Patient captured (demo). Code: '+created.patient_code); }
+        document.querySelector('.modal-overlay.active')?.remove(); this.loadPatientsDemo(); });
+
+      showProviderConsults(patientId){
+        const patient = this.demo.patients.find(p=>p.id===patientId) || { id: patientId };
+        const consults = this._getConsultationsByPatient(patientId);
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `<div class="modal-overlay active"><div class="modal large"><div class="modal-header"><h3>Provider - Consultations for ${patient.first_name||''} ${patient.last_name||''}</h3><button class="modal-close">&times;</button></div><div class="modal-body"><div id="provider-consults-list">${consults.map(c=>`<div style="margin-bottom:12px;padding:10px;border-radius:6px;background:#f7f9fc"><b>${c.consultation_code}</b> — Status: ${c.status}<div style="margin-top:8px">Diagnosis: ${c.diagnosis||'—'}<br/>Medication: ${c.medication||'—'}</div><div style="margin-top:8px"><button class="btn btn-sm" data-provide="${c.id}">Add Diagnosis & Send to Pharmacy</button></div></div>`).join('')}</div></div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Close</button></div></div></div>`;
+        // delegate provider action
+        modal.querySelectorAll('[data-provide]').forEach(b=>b.addEventListener('click', (ev)=>{
+          const cid = b.getAttribute('data-provide'); this._openProviderEditModal(cid);
+        }));
+      }
+
+      _openProviderEditModal(consultationId){
+        const c = this.demo.consultations.find(x=>x.id===consultationId); if(!c) return alert('Consultation not found');
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `<div class="modal-overlay active"><div class="modal"><div class="modal-header"><h3>Edit Consultation ${c.consultation_code}</h3><button class="modal-close">&times;</button></div><div class="modal-body"><form id="provider-form"><div class="form-group"><label>Diagnosis</label><textarea name="diagnosis" rows="3">${c.diagnosis||''}</textarea></div><div class="form-group"><label>Medication (comma separated)</label><input name="medication" value="${c.medication||''}"></div><div class="form-group"><label>Fee</label><input name="fee" type="number" value="${c.fee||0}"></div></form></div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button><button type="submit" form="provider-form" class="btn btn-primary">Save & Send to Pharmacy</button></div></div></div>`;
+        document.getElementById('provider-form').addEventListener('submit', (ev)=>{
+          ev.preventDefault(); const fd=new FormData(ev.target); const diagnosis=fd.get('diagnosis'); const medication=fd.get('medication'); const fee=parseFloat(fd.get('fee'))||0; this._updateConsultationDemo(c.id,{ diagnosis, medication, fee, status:'sent_to_pharmacy' }); alert('Consultation updated and sent to pharmacy'); modal.querySelector('.modal-overlay')?.remove(); this.loadPatientsDemo();
+        });
+      }
+
+      showPharmacyModal(patientId){
+        const consults = this._getConsultationsByPatient(patientId).filter(c=>c.status==='sent_to_pharmacy');
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `<div class="modal-overlay active"><div class="modal large"><div class="modal-header"><h3>Pharmacy Queue</h3><button class="modal-close">&times;</button></div><div class="modal-body">${consults.length?consults.map(c=>`<div style="padding:10px;border-radius:6px;background:#f7f9fc;margin-bottom:10px"><b>${c.consultation_code}</b> — Medication: ${c.medication||'—'}<div style="margin-top:8px"><button class="btn btn-sm" data-recv="${c.id}">Mark Received</button></div></div>`).join(''):'<div>No items in pharmacy queue</div>'}</div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Close</button></div></div></div>`;
+        modal.querySelectorAll('[data-recv]').forEach(b=>b.addEventListener('click', (ev)=>{ const cid=b.getAttribute('data-recv'); this._updateConsultationDemo(cid,{ pharmacy_received:true, status:'completed' }); alert('Marked medication received by patient'); modal.querySelector('.modal-overlay')?.remove(); this.loadPatientsDemo(); }));
+      }
+
+      showPatientConsults(patientId){
+        const consults = this._getConsultationsByPatient(patientId);
+        const modal = this._ensureModalContainer();
+        modal.innerHTML = `<div class="modal-overlay active"><div class="modal large"><div class="modal-header"><h3>Consultations</h3><button class="modal-close">&times;</button></div><div class="modal-body">${consults.length?consults.map(c=>`<div style="padding:10px;border-radius:6px;background:#f7f9fc;margin-bottom:10px"><b>${c.consultation_code}</b> — Status: ${c.status}<div>Diagnosis: ${c.diagnosis||'—'}</div><div>Medication: ${c.medication||'—'}</div></div>`).join(''):'<div>No consultations for this patient</div>'}</div><div class="modal-footer"><button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Close</button></div></div></div>`;
+      }
+
+    }
+
+    const patientManager = new PatientManager();
+    window.addEventListener('load', ()=>{
+      patientManager.showWelcomePage();
+      const dashBtn = document.getElementById('dashboard-btn'); if (dashBtn) dashBtn.addEventListener('click', ()=>{ alert('Dashboard: system overview (placeholder)'); });
+      const headerAction = document.getElementById('header-action'); if (headerAction) headerAction.addEventListener('click', ()=>{ patientManager.showWelcomePage(); window.scrollTo({ top: document.getElementById('content').offsetTop, behavior: 'smooth' }); });
+      const openCashier = document.getElementById('open-cashier'); if (openCashier) openCashier.addEventListener('click', ()=>patientManager.showCashierModal());
+      const openWelcome = document.getElementById('open-welcome'); if (openWelcome) openWelcome.addEventListener('click', ()=>patientManager.showWelcomePage());
+      // Global handler: close modal when any .modal-close button clicked
+      document.addEventListener('click', (e)=>{ if (e.target.classList && e.target.classList.contains('modal-close')) { e.target.closest('.modal-overlay')?.remove(); } });
+    });
+  </script>
+</body>
+</html>

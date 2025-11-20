@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Telemedicine - Diabetes & Hypertension Management</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/auth.css">
+    <link rel="stylesheet" href="styles/dashboard.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Auth Section -->
+    <div id="auth-section" class="auth-section">
+        <div class="auth-container">
+            <div class="auth-card">
+                <h2><i class="fas fa-heartbeat"></i> Telemedicine System</h2>
+                <p class="auth-subtitle">Diabetes & Hypertension Management</p>
+                
+                <form id="login-form" class="auth-form">
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" name="password" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-sign-in-alt"></i> Login
+                    </button>
+                </form>
+                
+                <div class="auth-footer">
+                    <p>Secure telemedicine platform for chronic disease management</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App Section -->
+    <div id="app-section" class="app-section hidden">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-left">
+                <h1><i class="fas fa-heartbeat"></i> Telemedicine System</h1>
+            </div>
+            <div class="header-right">
+                <span id="user-info" class="user-info"></span>
+                <button id="logout-btn" class="btn btn-outline">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-container">
+            <!-- Sidebar -->
+            <aside class="sidebar" id="sidebar">
+                <!-- Sidebar content will be loaded dynamically -->
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content" id="content">
+                <!-- Content will be loaded dynamically based on user role -->
+            </main>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="scripts/config.js"></script>
+    <script src="scripts/auth.js"></script>
+    <script src="scripts/dashboard.js"></script>
+    <script src="scripts/patients.js"></script>
+    <script src="scripts/appointments.js"></script>
+    <script src="scripts/records.js"></script>
+    <script src="scripts/inventory.js"></script>
+    <script src="scripts/main.js"></script>
+</body>
+</html>

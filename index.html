@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Telemed — UI</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="site-header">
+      <div class="brand">Telemed</div>
+      <nav class="nav-actions">
+        <button id="open-welcome" class="btn">Home</button>
+        <button id="open-cashier" class="btn">Cashier</button>
+      </nav>
+    </header>
+
+    <main id="content"></main>
+  </div>
+
+  <script src="patient-manager.js"></script>
+    <!-- Supabase config and CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js"></script>
+  <script>
+    // Ensure patientManager is created by patient-manager.js
+    window.addEventListener('load', () => {
+      if (typeof patientManager !== 'undefined') {
+        patientManager.showWelcomePage();
+        document.getElementById('open-cashier').addEventListener('click', () => patientManager.showCashierModal());
+        document.getElementById('open-welcome').addEventListener('click', () => patientManager.showWelcomePage());
+      } else {
+        document.getElementById('content').innerText = 'patientManager not loaded. Check console.';
+      }
+    });
+  </script>
+</body>
+</html>

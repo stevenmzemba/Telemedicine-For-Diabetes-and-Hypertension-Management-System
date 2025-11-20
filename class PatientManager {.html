@@ -1,0 +1,599 @@
+class PatientManager {
+    constructor() {
+        this.currentPatient = null;
+    }
+
+    async loadPatients() {
+        const { data: patients, error } = await supabase
+            .from('patients')
+            .select('*')
+            .order('created_at', { ascending: false });
+
+        if (error) {
+            console.error('Error loading patients:', error);
+            return;
+        }
+
+        const content = document.getElementById('content');
+        content.innerHTML = `
+            <div class="page-header">
+                <h2>Patient Management</h2>
+                <button class="btn btn-primary" id="add-patient-btn">
+                    <i class="fas fa-plus"></i> Add Patient
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>All Patients</h3>
+                    <div class="search-box">
+                        <input type="text" id="patient-search" placeholder="Search patients...">
+                        <i class="fas fa-search"></i>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Patient Code</th>
+                                    <th>Name</th>
+                                    <th>Age</th>
+                                    <th>Gender</th>
+                                    <th>Village</th>
+                                    <th>Chronic Diseases</th>
+                                    <th>Last Visit</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="patients-tbody">
+                                ${this.renderPatientsTable(patients)}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.attachEventListeners();
+    }
+
+
+    renderPatientsTable(patients) {
+        if (!patients || patients.length === 0) {
+            return '<tr><td colspan="8" class="text-center">No patients found</td></tr>';
+        }
+
+        return patients.map(patient => `
+            <tr>
+                <td>${patient.patient_code}</td>
+                <td>${patient.first_name} ${patient.last_name}</td>
+                <td>${patient.age}</td>
+                <td>${patient.gender}</td>
+                <td>${patient.village}</td>
+                <td>${this.renderChronicDiseases(patient)}</td>
+                <td>${this.getLastVisit(patient)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline view-patient" data-id="${patient.id}">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline edit-patient" data-id="${patient.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    renderChronicDiseases(patient) {
+        if (!patient.chronic_diseases || patient.chronic_diseases.length === 0) {
+            return '<span class="badge badge-secondary">Not specified</span>';
+        }
+
+        return patient.chronic_diseases.map(disease => 
+            `<span class="badge badge-primary">${disease}</span>`
+        ).join(' ');
+    }
+
+    getLastVisit(patient) {
+        // This would typically come from appointments table
+        return 'N/A';
+    }
+
+    attachEventListeners() {
+        // Search functionality
+        document.getElementById('patient-search').addEventListener('input', this.handleSearch.bind(this));
+
+        // View patient details
+        document.querySelectorAll('.view-patient').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const patientId = e.target.closest('button').dataset.id;
+                this.viewPatientDetails(patientId);
+            });
+        });
+
+        // Edit patient
+        document.querySelectorAll('.edit-patient').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const patientId = e.target.closest('button').dataset.id;
+                this.editPatient(patientId);
+            });
+        });
+
+        // Add patient button
+        document.getElementById('add-patient-btn').addEventListener('click', () => {
+            this.showAddPatientModal();
+        });
+    }
+
+    async handleSearch(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        
+        const { data: patients, error } = await supabase
+            .from('patients')
+            .select('*')
+            .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,patient_code.ilike.%${searchTerm}%,village.ilike.%${searchTerm}%`)
+            .order('created_at', { ascending: false });
+
+        if (!error) {
+            document.getElementById('patients-tbody').innerHTML = this.renderPatientsTable(patients);
+        }
+    }
+
+    async viewPatientDetails(patientId) {
+        const { data: patient, error } = await supabase
+            .from('patients')
+            .select(`
+                *,
+                health_records(*),
+                appointments(*)
+            `)
+            .eq('id', patientId)
+            .single();
+
+        if (error) {
+            alert('Error loading patient details: ' + error.message);
+            return;
+        }
+
+        this.showPatientDetailsModal(patient);
+    }
+
+    showPatientDetailsModal(patient) {
+        const modal = document.getElementById('modal-container');
+        modal.innerHTML = `
+            <div class="modal-overlay active">
+                <div class="modal large">
+                    <div class="modal-header">
+                        <h3>Patient Details - ${patient.patient_code}</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="patient-info-grid">
+                            <div class="info-group">
+                                <label>Full Name:</label>
+                                <span>${patient.first_name} ${patient.last_name}</span>
+                            </div>
+                            <div class="info-group">
+                                <label>Age:</label>
+                                <span>${patient.age}</span>
+                            </div>
+                            <div class="info-group">
+                                <label>Gender:</label>
+                                <span>${patient.gender}</span>
+                            </div>
+                            <div class="info-group">
+                                <label>Village:</label>
+                                <span>${patient.village}</span>
+                            </div>
+                            <div class="info-group">
+                                <label>Phone:</label>
+                                <span>${patient.phone || 'N/A'}</span>
+                            </div>
+                            <div class="info-group">
+                                <label>Chronic Diseases:</label>
+                                <span>${this.renderChronicDiseases(patient)}</span>
+                            </div>
+                        </div>
+
+                        <div class="tabs">
+                            <div class="tab-headers">
+                                <button class="tab-header active" data-tab="records">Health Records</button>
+                                <button class="tab-header" data-tab="appointments">Appointments</button>
+                                <button class="tab-header" data-tab="medications">Medications</button>
+                            </div>
+                            
+                            <div class="tab-content active" id="records-tab">
+                                <h4>Health Records</h4>
+                                ${this.renderHealthRecords(patient.health_records)}
+                            </div>
+                            
+                            <div class="tab-content" id="appointments-tab">
+                                <h4>Appointments</h4>
+                                ${this.renderAppointments(patient.appointments)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Close</button>
+                        <button class="btn btn-primary" onclick="patientManager.editPatient('${patient.id}')">
+                            <i class="fas fa-edit"></i> Edit Patient
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        this.attachTabListeners();
+    }
+
+    // Show cashier modal to take quick patient payment/registration info
+    showCashierModal() {
+        const modal = document.getElementById('modal-container');
+        modal.innerHTML = `
+            <div class="modal-overlay active">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>Cashier - Patient Intake</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="cashier-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>First Name *</label>
+                                    <input type="text" name="first_name" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Last Name</label>
+                                    <input type="text" name="last_name" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Age *</label>
+                                    <input type="number" name="age" min="0" max="120" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Sex *</label>
+                                    <select name="gender" required>
+                                        <option value="">Select</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Village</label>
+                                    <input type="text" name="village" />
+                                </div>
+                                <div class="form-group">
+                                    <label>Healthcare Provider</label>
+                                    <input type="text" name="healthcare_provider" />
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Contact 1 *</label>
+                                    <input type="tel" name="contact1" required />
+                                </div>
+                                <div class="form-group">
+                                    <label>Contact 2</label>
+                                    <input type="tel" name="contact2" />
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>Chronic Disease Type *</label>
+                                <select name="chronic_type" required>
+                                    <option value="">Select</option>
+                                    <option value="diabetes">Diabetes</option>
+                                    <option value="hypertension">Hypertension</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                        <button type="submit" form="cashier-form" class="btn btn-primary">Save</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('cashier-form').addEventListener('submit', this.handleCashierSubmit.bind(this));
+    }
+
+    async handleCashierSubmit(e) {
+        e.preventDefault();
+
+        const form = e.target;
+        const fd = new FormData(form);
+        const patientData = {
+            first_name: fd.get('first_name'),
+            last_name: fd.get('last_name'),
+            age: parseInt(fd.get('age')) || null,
+            gender: fd.get('gender'),
+            village: fd.get('village'),
+            healthcare_provider: fd.get('healthcare_provider'),
+            contacts: [fd.get('contact1'), fd.get('contact2')].filter(Boolean),
+            chronic_type: fd.get('chronic_type'),
+            patient_code: (typeof generatePatientCode === 'function') ? await generatePatientCode() : null
+        };
+
+        try {
+            if (typeof supabase !== 'undefined') {
+                const { data, error } = await supabase.from('patients').insert([patientData]).select().single();
+                if (error) throw error;
+                alert('Patient registered (cashier) — Code: ' + (data.patient_code || data.id));
+            } else {
+                console.log('Cashier patient data (no supabase):', patientData);
+                alert('Patient data captured (no backend). Check console.');
+            }
+
+            const activeModal = document.querySelector('.modal-overlay.active');
+            if (activeModal) activeModal.remove();
+            if (typeof this.loadPatients === 'function') this.loadPatients();
+
+        } catch (err) {
+            alert('Error saving patient: ' + (err.message || err));
+        }
+    }
+
+    // Render a simple welcome/home page with login/signup and quick nav
+    showWelcomePage() {
+        const content = document.getElementById('content');
+        content.innerHTML = `
+            <div class="home-hero">
+                <h1>Welcome to Telemed</h1>
+                <p>Manage patients, appointments, and payments.</p>
+                <div class="home-actions">
+                    <button class="btn btn-primary" id="login-btn">Login</button>
+                    <button class="btn btn-outline" id="signup-btn">Sign Up</button>
+                    <button class="btn btn-secondary" id="goto-patients">View Patients</button>
+                </div>
+            </div>
+            <div id="modal-container"></div>
+        `;
+
+        this.attachAuthListeners();
+        document.getElementById('goto-patients').addEventListener('click', () => this.loadPatients());
+    }
+
+    attachAuthListeners() {
+        document.getElementById('login-btn').addEventListener('click', () => this.showLoginModal());
+        document.getElementById('signup-btn').addEventListener('click', () => this.showSignupModal());
+    }
+
+    showLoginModal() {
+        const modal = document.getElementById('modal-container');
+        modal.innerHTML = `
+            <div class="modal-overlay active">
+                <div class="modal">
+                    <div class="modal-header"><h3>Login</h3><button class="modal-close">&times;</button></div>
+                    <div class="modal-body">
+                        <form id="login-form">
+                            <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+                            <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+                            <div class="form-group"><label>Role</label>
+                                <select name="role" required>
+                                    <option value="cashier">Cashier</option>
+                                    <option value="provider">Provider</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                        <button type="submit" form="login-form" class="btn btn-primary">Login</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('login-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const role = fd.get('role');
+            localStorage.setItem('telemed_role', role);
+            document.querySelector('.modal-overlay.active')?.remove();
+            alert('Logged in as ' + role);
+            if (role === 'cashier') this.showCashierModal();
+            else this.loadPatients();
+        });
+    }
+
+    showSignupModal() {
+        const modal = document.getElementById('modal-container');
+        modal.innerHTML = `
+            <div class="modal-overlay active">
+                <div class="modal">
+                    <div class="modal-header"><h3>Sign Up</h3><button class="modal-close">&times;</button></div>
+                    <div class="modal-body">
+                        <form id="signup-form">
+                            <div class="form-group"><label>Full Name</label><input name="name" required></div>
+                            <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+                            <div class="form-group"><label>Password</label><input type="password" name="password" required></div>
+                            <div class="form-group"><label>Role</label>
+                                <select name="role" required>
+                                    <option value="cashier">Cashier</option>
+                                    <option value="provider">Provider</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                        <button type="submit" form="signup-form" class="btn btn-primary">Sign Up</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('signup-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const fd = new FormData(e.target);
+            const role = fd.get('role');
+            // In a real app you would call auth backend here
+            localStorage.setItem('telemed_role', role);
+            document.querySelector('.modal-overlay.active')?.remove();
+            alert('Signed up as ' + role);
+            if (role === 'cashier') this.showCashierModal();
+            else this.loadPatients();
+        });
+    }
+
+    showAddPatientModal() {
+        const modal = document.getElementById('modal-container');
+        modal.innerHTML = `
+            <div class="modal-overlay active">
+                <div class="modal">
+                    <div class="modal-header">
+                        <h3>Add New Patient</h3>
+                        <button class="modal-close">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="add-patient-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="modal-first_name">First Name *</label>
+                                    <input type="text" id="modal-first_name" name="first_name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="modal-last_name">Last Name *</label>
+                                    <input type="text" id="modal-last_name" name="last_name" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="modal-date_of_birth">Date of Birth *</label>
+                                    <input type="date" id="modal-date_of_birth" name="date_of_birth" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="modal-age">Age *</label>
+                                    <input type="number" id="modal-age" name="age" min="1" max="120" required>
+                                </div>
+                            </div>
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="modal-gender">Gender *</label>
+                                    <select id="modal-gender" name="gender" required>
+                                        <option value="">Select Gender</option>
+                                        <option value="male">Male</option>
+                                        <option value="female">Female</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="modal-village">Village *</label>
+                                    <input type="text" id="modal-village" name="village" required>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="modal-chronic_diseases">Chronic Diseases</label>
+                                <select id="modal-chronic_diseases" name="chronic_diseases" multiple>
+                                    <option value="T1D">Type 1 Diabetes</option>
+                                    <option value="T2D">Type 2 Diabetes</option>
+                                    <option value="HYP_STAGE1">Hypertension Stage 1</option>
+                                    <option value="HYP_STAGE2">Hypertension Stage 2</option>
+                                    <option value="PRE_DIABETES">Pre-diabetes</option>
+                                </select>
+                                <small>Hold Ctrl/Cmd to select multiple</small>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="modal-phone">Phone Number</label>
+                                <input type="tel" id="modal-phone" name="phone">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="modal-email">Email</label>
+                                <input type="email" id="modal-email" name="email">
+                            </div>
+
+                            <div class="form-group">
+                                <label for="modal-address">Address</label>
+                                <textarea id="modal-address" name="address" rows="3"></textarea>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()">Cancel</button>
+                        <button type="submit" form="add-patient-form" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Patient
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        document.getElementById('add-patient-form').addEventListener('submit', this.handleAddPatient.bind(this));
+    }
+
+    async handleAddPatient(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(e.target);
+        const chronicDiseases = Array.from(document.getElementById('modal-chronic_diseases').selectedOptions)
+            .map(option => option.value);
+
+        const patientData = {
+            first_name: formData.get('first_name'),
+            last_name: formData.get('last_name'),
+            date_of_birth: formData.get('date_of_birth'),
+            age: parseInt(formData.get('age')),
+            gender: formData.get('gender'),
+            village: formData.get('village'),
+            phone: formData.get('phone'),
+            email: formData.get('email'),
+            address: formData.get('address'),
+            chronic_diseases: chronic_diseases,
+            patient_code: await generatePatientCode()
+        };
+
+        try {
+            const { data, error } = await supabase
+                .from('patients')
+                .insert([patientData])
+                .select()
+                .single();
+
+            if (error) throw error;
+
+            alert('Patient added successfully! Patient Code: ' + data.patient_code);
+            document.querySelector('.modal-overlay.active').remove();
+            this.loadPatients(); // Refresh the list
+
+        } catch (error) {
+            alert('Error adding patient: ' + error.message);
+        }
+    }
+
+    attachTabListeners() {
+        document.querySelectorAll('.tab-header').forEach(header => {
+            header.addEventListener('click', (e) => {
+                const tabName = e.target.dataset.tab;
+                
+                // Update active tab header
+                document.querySelectorAll('.tab-header').forEach(h => h.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Update active tab content
+                document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+            });
+        });
+    }
+}
+
+// Initialize patient manager
+const patientManager = new PatientManager();

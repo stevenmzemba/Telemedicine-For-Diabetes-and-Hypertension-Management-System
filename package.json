@@ -1,0 +1,8 @@
+{
+  "name": "telemed-test",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "jsdom": "^22.0.0"
+  }
+}
